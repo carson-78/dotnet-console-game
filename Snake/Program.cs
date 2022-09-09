@@ -1,68 +1,110 @@
 ﻿using System;
-using System.Text;
+using System.Diagnostics;
 using System.Timers;
 
 namespace Snake;
-
+class ABC : EventArgs {
+   int x = 9;
+}
 internal class Program {
    //getlength(0) = y
    //getlength(1) = x
    const int size_x = 20;
    const int size_y = 20;
-   static double timeInterval = 200; //milisecond
+   double timeInterval = 100; //milisecond
 
-   static Queue<Vector2> queue = new Queue<Vector2>();
-   static System.Timers.Timer timer = new System.Timers.Timer();
-   static Random random = new Random();
-   //============================================================
-   static char[,] array = new char[size_x,size_y];
-   static Vector2 direction = Vector2.Zero;
-   static Vector2 current = Vector2.Zero;
-   static Vector2 rdmFoodPos;
-   //============================================================
+   Queue<Vector2> queue = new Queue<Vector2>();
+   System.Timers.Timer timer = new System.Timers.Timer();
+   Stopwatch watch = new Stopwatch();
+   Random random = new Random();
+   //===============================================================
+   int length;
+   char[,] array = new char[size_x,size_y];
+   Vector2 direction = Vector2.Zero;
+   Vector2 current = Vector2.Zero;
+   Vector2 rdmFoodPos;
+   ConsoleKeyInfo[] keys = new ConsoleKeyInfo[1];
+   //===============================================================
+   string[] lists = new string[4] { "100ms", "200ms", "500ms", "1000ms" };
+   int[] i_lists = new int[4] { 100, 200, 500, 1000 };
    // food
-   static bool canSpawnFood = true;
+   bool canSpawnFood = true;
+   int selected = 0;
 
    static void Main (string[] args) {
-      //// init value
+      // entry
+      Program p = new Program();
+      p.Start();
+   }
+
+   void UI () {
+      Console.SetCursorPosition(0, 3);
+      for (int i = 0; i < 4; i++) {
+         if (i == selected) {
+            Console.WriteLine($"> {lists[i]}");
+            continue;
+         }
+         Console.WriteLine($"@ {lists[i]}");
+      }
+   }
+
+   void Start () {
+      // reset value
+      ResetValue();
+
+      // wait key pressed
+      Console.WriteLine(".Net Console Snake Game v2 09/09/2022");
+      Console.WriteLine("=== Pick speed ===");
+      UI(); // init ui text
+      // pick speed
+      while (true) {
+         var k = Console.ReadKey().Key;
+         if (k == ConsoleKey.UpArrow && selected > 0) {
+            selected--;
+            UI();
+         }
+         else if (k == ConsoleKey.DownArrow && selected < 3) {
+            selected++;
+            UI();
+         }
+         else if(k == ConsoleKey.Enter) {
+            break;
+         }
+      }
+      Console.Clear();
+      // enable timer
+      timer.Enabled = true;
+      timer.Start();
+      timer.Interval = i_lists[selected];
+
+      watch.Start();
+
+      // init game value
       for (int i = 0; i < array.GetLength(0); i++) {
          for (int j = 0; j < array.GetLength(1); j++) {
             array[i, j] = '#';
          }
       }
       queue.Enqueue(new Vector2(0, 0));
-      timer.Enabled = true;
-      timer.Start();
-      timer.Interval = timeInterval;
-      timer.Elapsed += Update;
-      GetKey();
+      direction = Vector2.Right;
 
-   }
-   static void GetKey () {
+      // start game update
+      timer.Elapsed += Update;
       while (true) {
-         if (Console.KeyAvailable) {
-            var key = Console.ReadKey(true);
-            switch (key.Key) {
-               case ConsoleKey.UpArrow:
-                  direction = Vector2.Up;
-                  break;
-               case ConsoleKey.DownArrow:
-                  direction = Vector2.Down;
-                  break;
-               case ConsoleKey.LeftArrow:
-                  direction = Vector2.Left;
-                  break;
-               case ConsoleKey.RightArrow:
-                  direction = Vector2.Right;
-                  break;
-            }
-         }
+         GetKey();
       }
    }
 
-   private static void Update (object? sender, ElapsedEventArgs e) {
-      // clear and reload
-      //Console.Clear();
+   void GetKey () {
+      if (Console.KeyAvailable) {
+         keys[0] = Console.ReadKey(true);
+      }
+   }
+
+   private void Update (object? sender, ElapsedEventArgs e) {
+      // update direction according to last key pressed
+      UpdateDirection();
+      // refresh screen
       Console.SetCursorPosition(0, 0);
       // spawn food if possible
       if (canSpawnFood) {
@@ -79,14 +121,16 @@ internal class Program {
       queue.Enqueue(current);
 
       // if current position is collide with food dont dequeue
-      //else
+      // else
       // reset the value and dequeue the tail
       if (current != rdmFoodPos) {
          Vector2 front = queue.Peek();
          array[front.y, front.x] = '#';
          queue.Dequeue();
       }
-      
+      else {
+         length++;
+      }
 
       // boundary
       if (current.x < array.GetLength(1) && current.y < array.GetLength(0) &&
@@ -100,27 +144,69 @@ internal class Program {
             }
             Console.WriteLine();
          }
-
          Output();
       }
 
       // outside boundary
       else {
+         watch.Stop();
+         timer.Enabled = false;
+         timer.Stop();
+         timer.Elapsed -= Update;
+
          Console.SetCursorPosition(0, array.GetLength(0)+4);
          Console.WriteLine("========== You Lose! =========");
-         timer.Stop();
-      }
+         Console.WriteLine($"===== Survived Time {watch.ElapsedMilliseconds / 1000} s =====");
 
+         Console.WriteLine("Press any key to restart!");
+         Console.ReadKey();
+         Start();
+      }
    }
-   static Vector2 RandFoodPos () {
+
+   void UpdateDirection () {
+      if (direction == Vector2.Up || direction == Vector2.Down) {
+         switch (keys[0].Key) {
+            case ConsoleKey.LeftArrow:
+               direction = Vector2.Left;
+               break;
+            case ConsoleKey.RightArrow:
+               direction = Vector2.Right;
+               break;
+         }
+      }
+      else if (direction == Vector2.Left || direction == Vector2.Right) {
+         switch (keys[0].Key) {
+            case ConsoleKey.UpArrow:
+               direction = Vector2.Up;
+               break;
+            case ConsoleKey.DownArrow:
+               direction = Vector2.Down;
+               break;
+         }
+      }
+   }
+
+   Vector2 RandFoodPos () {
       return new Vector2(random.Next(array.GetLength(1) - 1),
          random.Next(array.GetLength(0) - 1));
    }
 
-   static void Output () {
+   void Output () {
       Console.WriteLine($"\nCurrent Position = {current.x} , {current.y}");
+      Console.WriteLine($"Length = {length}");
       Console.WriteLine($"Update Interval (ms) = {timeInterval}");
-      Console.WriteLine($"food position = {rdmFoodPos.x} , {rdmFoodPos.y}");
+      Console.WriteLine($"Survied Time = {Math.Round(watch.ElapsedMilliseconds * 0.001,2)}");
+      Console.WriteLine($"Food position = {rdmFoodPos.x} , {rdmFoodPos.y}");
+   }
+
+   void ResetValue () {
+      // clear queue
+      Console.Clear();
+      queue = new Queue<Vector2>();
+      length = 1;
+      direction = Vector2.Zero;
+      current = Vector2.Zero;
    }
 }
 
