@@ -3,15 +3,15 @@ using System.Diagnostics;
 using System.Timers;
 
 namespace Snake;
-class ABC : EventArgs {
-   int x = 9;
-}
+
 internal class Program {
    //getlength(0) = y
    //getlength(1) = x
    const int size_x = 20;
    const int size_y = 20;
-   double timeInterval = 100; //milisecond
+   //double timeInterval = 100; //milisecond
+   string[] lists = new string[4] { "100ms", "200ms", "500ms", "1000ms" };
+   int[] i_lists = new int[4] { 100, 200, 500, 1000 };
 
    Queue<Vector2> queue = new Queue<Vector2>();
    System.Timers.Timer timer = new System.Timers.Timer();
@@ -24,9 +24,10 @@ internal class Program {
    Vector2 current = Vector2.Zero;
    Vector2 rdmFoodPos;
    ConsoleKeyInfo[] keys = new ConsoleKeyInfo[1];
+   enum Direction { Left,Right, Up, Down };
+   Direction dir;
    //===============================================================
-   string[] lists = new string[4] { "100ms", "200ms", "500ms", "1000ms" };
-   int[] i_lists = new int[4] { 100, 200, 500, 1000 };
+   
    // food
    bool canSpawnFood = true;
    int selected = 0;
@@ -37,25 +38,16 @@ internal class Program {
       p.Start();
    }
 
-   void UI () {
-      Console.SetCursorPosition(0, 3);
-      for (int i = 0; i < 4; i++) {
-         if (i == selected) {
-            Console.WriteLine($"> {lists[i]}");
-            continue;
-         }
-         Console.WriteLine($"@ {lists[i]}");
-      }
-   }
-
    void Start () {
+      Vector2 randomPos = randomStartPos();
       // reset value
-      ResetValue();
+      ResetValue(randomPos);
 
       // wait key pressed
       Console.WriteLine(".Net Console Snake Game v2 09/09/2022");
       Console.WriteLine("=== Pick speed ===");
-      UI(); // init ui text
+      // init ui text
+      UI(); 
       // pick speed
       while (true) {
          var k = Console.ReadKey().Key;
@@ -68,25 +60,25 @@ internal class Program {
             UI();
          }
          else if(k == ConsoleKey.Enter) {
+            // start watch
+            watch.Start();
             break;
          }
       }
       Console.Clear();
-      // enable timer
+      // enable timer and set speed
       timer.Enabled = true;
       timer.Start();
       timer.Interval = i_lists[selected];
-
-      watch.Start();
-
-      // init game value
+      
+      // init game screen and value
       for (int i = 0; i < array.GetLength(0); i++) {
          for (int j = 0; j < array.GetLength(1); j++) {
             array[i, j] = '#';
          }
       }
-      queue.Enqueue(new Vector2(0, 0));
-      direction = Vector2.Right;
+      queue.Enqueue(randomPos);
+      RandomStartDir();
 
       // start game update
       timer.Elapsed += Update;
@@ -149,7 +141,10 @@ internal class Program {
 
       // outside boundary
       else {
+         // reset time
          watch.Stop();
+         watch.Reset();
+         // stop timer
          timer.Enabled = false;
          timer.Stop();
          timer.Elapsed -= Update;
@@ -163,7 +158,6 @@ internal class Program {
          Start();
       }
    }
-
    void UpdateDirection () {
       if (direction == Vector2.Up || direction == Vector2.Down) {
          switch (keys[0].Key) {
@@ -185,6 +179,40 @@ internal class Program {
                break;
          }
       }
+      else {
+         switch (keys[0].Key) {
+            case ConsoleKey.UpArrow:
+               direction = Vector2.Up;
+               break;
+            case ConsoleKey.DownArrow:
+               direction = Vector2.Down;
+               break;
+            case ConsoleKey.LeftArrow:
+               direction = Vector2.Left;
+               break;
+            case ConsoleKey.RightArrow:
+               direction = Vector2.Right;
+               break;
+         }
+      }
+   }
+
+   void RandomStartDir () {
+      dir = (Direction)random.Next(0, 4);
+      switch (dir) {
+         case Direction.Left:
+            direction = Vector2.Left;
+            break;
+         case Direction.Right:
+            direction = Vector2.Right;
+            break;
+         case Direction.Up:
+            direction = Vector2.Up;
+            break;
+         case Direction.Down:
+            direction = Vector2.Down;
+            break;
+      }
    }
 
    Vector2 RandFoodPos () {
@@ -192,21 +220,37 @@ internal class Program {
          random.Next(array.GetLength(0) - 1));
    }
 
+   void UI () {
+      Console.SetCursorPosition(0, 3);
+      for (int i = 0; i < 4; i++) {
+         if (i == selected) {
+            Console.WriteLine($"> {lists[i]}");
+            continue;
+         }
+         Console.WriteLine($"@ {lists[i]}");
+      }
+   }
+
    void Output () {
       Console.WriteLine($"\nCurrent Position = {current.x} , {current.y}");
       Console.WriteLine($"Length = {length}");
-      Console.WriteLine($"Update Interval (ms) = {timeInterval}");
+      Console.WriteLine($"Update Interval (ms) = {i_lists[selected]}");
       Console.WriteLine($"Survied Time = {Math.Round(watch.ElapsedMilliseconds * 0.001,2)}");
       Console.WriteLine($"Food position = {rdmFoodPos.x} , {rdmFoodPos.y}");
    }
 
-   void ResetValue () {
+   void ResetValue (Vector2 s_pos) {
       // clear queue
       Console.Clear();
       queue = new Queue<Vector2>();
       length = 1;
       direction = Vector2.Zero;
-      current = Vector2.Zero;
+      current = s_pos;
+   }
+
+   Vector2 randomStartPos () {
+      return new Vector2(random.Next(0+3,size_x - 3),
+         random.Next(0+3, size_y - 3));
    }
 }
 
