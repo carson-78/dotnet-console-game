@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Timers;
-
 namespace Snake;
 
 internal class Program {
@@ -23,7 +22,7 @@ internal class Program {
    Vector2 direction = Vector2.Zero;
    Vector2 current = Vector2.Zero;
    Vector2 rdmFoodPos;
-   ConsoleKeyInfo[] keys = new ConsoleKeyInfo[1];
+   ConsoleKeyInfo key;
    enum Direction { Left,Right, Up, Down };
    Direction dir;
    //===============================================================
@@ -74,7 +73,7 @@ internal class Program {
       // init game screen and value
       for (int i = 0; i < array.GetLength(0); i++) {
          for (int j = 0; j < array.GetLength(1); j++) {
-            array[i, j] = '#';
+            array[i, j] = 'O';
          }
       }
       queue.Enqueue(randomPos);
@@ -89,7 +88,7 @@ internal class Program {
 
    void GetKey () {
       if (Console.KeyAvailable) {
-         keys[0] = Console.ReadKey(true);
+         key = Console.ReadKey(true);
       }
    }
 
@@ -102,7 +101,7 @@ internal class Program {
       if (canSpawnFood) {
          rdmFoodPos = RandFoodPos();
          if (array[rdmFoodPos.y, rdmFoodPos.x] != '@') {
-            array[rdmFoodPos.y, rdmFoodPos.x] = 'X';
+            array[rdmFoodPos.y, rdmFoodPos.x] = '!';
             canSpawnFood = false;
          }
       }
@@ -110,57 +109,67 @@ internal class Program {
       // add current position
       current.x += direction.x;
       current.y += direction.y;
-      queue.Enqueue(current);
-
-      // if current position is collide with food dont dequeue
-      // else
-      // reset the value and dequeue the tail
-      if (current != rdmFoodPos) {
-         Vector2 front = queue.Peek();
-         array[front.y, front.x] = '#';
-         queue.Dequeue();
+      // if head collide with body
+      if (queue.Contains(current)) {
+         Lose();
       }
       else {
-         length++;
-      }
+         queue.Enqueue(current);
 
-      // boundary
-      if (current.x < array.GetLength(1) && current.y < array.GetLength(0) &&
-         current.x > -1 && current.y > -1) {
-         foreach (var q in queue) {
-            array[q.y, q.x] = '@';
+         // if current position is collide with food dont dequeue
+         // else
+         // reset the value and dequeue the tail
+         if (current != rdmFoodPos) {
+            Vector2 front = queue.Peek();
+            array[front.y, front.x] = 'O';
+            queue.Dequeue();
          }
-         for (int i = 0; i < array.GetLength(0); i++) {
-            for (int j = 0; j < array.GetLength(1); j++) { // >>>>>>> V
-               Console.Write(array[i, j]);
+         else {
+            canSpawnFood = true;
+            length++;
+         }
+
+         // boundary
+         if (current.x < array.GetLength(1) && current.y < array.GetLength(0) &&
+            current.x > -1 && current.y > -1) {
+            foreach (var q in queue) {
+               array[q.y, q.x] = '@';
             }
-            Console.WriteLine();
+            for (int i = 0; i < array.GetLength(0); i++) {
+               for (int j = 0; j < array.GetLength(1); j++) { // >>>>>>> V
+                  Console.Write(array[i, j]);
+               }
+               Console.WriteLine();
+            }
+            Output();
          }
-         Output();
+
+         // outside boundary
+         else {
+            Lose();
+         }
       }
+   }
+   void Lose () {
+      // reset time
+      watch.Stop();
+      watch.Reset();
+      // stop timer
+      timer.Enabled = false;
+      timer.Stop();
+      timer.Elapsed -= Update;
 
-      // outside boundary
-      else {
-         // reset time
-         watch.Stop();
-         watch.Reset();
-         // stop timer
-         timer.Enabled = false;
-         timer.Stop();
-         timer.Elapsed -= Update;
+      Console.SetCursorPosition(0, array.GetLength(0) + 4);
+      Console.WriteLine("========== You Lose! =========");
+      Console.WriteLine($"===== Survived Time {watch.ElapsedMilliseconds / 1000} s =====");
 
-         Console.SetCursorPosition(0, array.GetLength(0)+4);
-         Console.WriteLine("========== You Lose! =========");
-         Console.WriteLine($"===== Survived Time {watch.ElapsedMilliseconds / 1000} s =====");
-
-         Console.WriteLine("Press any key to restart!");
-         Console.ReadKey();
-         Start();
-      }
+      Console.WriteLine("Press any key to restart!");
+      Console.ReadKey();
+      Start();
    }
    void UpdateDirection () {
       if (direction == Vector2.Up || direction == Vector2.Down) {
-         switch (keys[0].Key) {
+         switch (key.Key) {
             case ConsoleKey.LeftArrow:
                direction = Vector2.Left;
                break;
@@ -170,28 +179,12 @@ internal class Program {
          }
       }
       else if (direction == Vector2.Left || direction == Vector2.Right) {
-         switch (keys[0].Key) {
+         switch (key.Key) {
             case ConsoleKey.UpArrow:
                direction = Vector2.Up;
                break;
             case ConsoleKey.DownArrow:
                direction = Vector2.Down;
-               break;
-         }
-      }
-      else {
-         switch (keys[0].Key) {
-            case ConsoleKey.UpArrow:
-               direction = Vector2.Up;
-               break;
-            case ConsoleKey.DownArrow:
-               direction = Vector2.Down;
-               break;
-            case ConsoleKey.LeftArrow:
-               direction = Vector2.Left;
-               break;
-            case ConsoleKey.RightArrow:
-               direction = Vector2.Right;
                break;
          }
       }
@@ -246,6 +239,7 @@ internal class Program {
       length = 1;
       direction = Vector2.Zero;
       current = s_pos;
+      canSpawnFood = true;
    }
 
    Vector2 randomStartPos () {
@@ -254,7 +248,7 @@ internal class Program {
    }
 }
 
-struct Vector2 {
+struct Vector2{
    public Vector2 (int _x, int _y) {
       x = _x;
       y = _y;
@@ -276,8 +270,9 @@ struct Vector2 {
       return !(a == b);
    }
 
-   public override bool Equals (object obj) {
-      throw new NotImplementedException();
+   public override bool Equals (object? obj) {
+      if(obj == null) return false;
+      return (this.x == ((Vector2)obj).x && this.y == ((Vector2)obj).y);
    }
 
    public override int GetHashCode () {
