@@ -3,14 +3,30 @@ using System.Diagnostics;
 using System.Timers;
 namespace Snake;
 
-internal class Program {
+class Map {
+   private int _x;
+   private int _y;
+   private char[,] array;
+
+   public int SizeX => _x; //get x length
+   public int SizeY => _y; //get y length
+   public Map (int x,int y) {
+      _x = x; 
+      _y = y;
+      array = new char[x,y];
+   }
+
+}
+
+internal class Snake {
    //getlength(0) = y
    //getlength(1) = x
-   const int size_x = 20;
-   const int size_y = 20;
-   //double timeInterval = 100; //milisecond
-   string[] lists = new string[4] { "100ms", "200ms", "500ms", "1000ms" };
-   int[] i_lists = new int[4] { 100, 200, 500, 1000 };
+   Map? map;
+
+   string[] diff_string = new string[3] { "Easy" , "Normal" , "Hard" };
+   int[] diff_int = new int[3] { 500,200,100 };
+   string[] map_size = new string[3] { "Small", "Normal", "Big " };
+   int[] map_int = new int[3] { 10, 20, 30 };
 
    Queue<Vector2> queue = new Queue<Vector2>();
    System.Timers.Timer timer = new System.Timers.Timer();
@@ -18,64 +34,82 @@ internal class Program {
    Random random = new Random();
    //===============================================================
    int length;
-   char[,] array = new char[size_x,size_y];
+   char[,]? array;
    Vector2 direction = Vector2.Zero;
    Vector2 current = Vector2.Zero;
    Vector2 rdmFoodPos;
    ConsoleKeyInfo key;
-   enum Direction { Left,Right, Up, Down };
+
+   enum Direction { Left, Right, Up, Down };
    Direction dir;
    //===============================================================
-   
+
    // food
    bool canSpawnFood = true;
    int selected = 0;
 
    static void Main (string[] args) {
       // entry
-      Program p = new Program();
+      Snake p = new Snake();
       p.Start();
    }
 
+   void UI (string[] lists) {
+      Console.SetCursorPosition(0, 3);
+      for (int i = 0; i < lists.Length; i++) {
+         if (i == selected) {
+            Console.WriteLine($"> {lists[i]}");
+            continue;
+         }
+         Console.WriteLine($"@ {lists[i]}");
+      }
+   }
+
    void Start () {
-      Vector2 randomPos = randomStartPos();
-      // reset value
-      ResetValue(randomPos);
+      Console.Clear();
 
       // wait key pressed
       Console.WriteLine(".Net Console Snake Game v2 09/09/2022");
       Console.WriteLine("=== Pick speed ===");
-      // init ui text
-      UI(); 
-      // pick speed
-      while (true) {
-         var k = Console.ReadKey().Key;
-         if (k == ConsoleKey.UpArrow && selected > 0) {
-            selected--;
-            UI();
-         }
-         else if (k == ConsoleKey.DownArrow && selected < 3) {
-            selected++;
-            UI();
-         }
-         else if(k == ConsoleKey.Enter) {
-            // start watch
-            watch.Start();
-            break;
-         }
-      }
+
+      // select difficulty
+      UI(diff_string);
+      int pick_diff = SetDifficulty(diff_string);
+
+      selected = 0; // reset selected value
+      // select map size
+      UI(map_size);
+      int pick_map = SetDifficulty(map_size);
+      // set map size
+      array = new char[map_int[pick_map],map_int[pick_map]];
+      //map = new Map(map_int[pick_map], map_int[pick_map]);
+      Vector2 randomPos = randomStartPos();
+      // reset value
+      ResetValue(randomPos);
+
       Console.Clear();
       // enable timer and set speed
       timer.Enabled = true;
       timer.Start();
-      timer.Interval = i_lists[selected];
-      
+      timer.Interval = diff_int[pick_diff];
+
       // init game screen and value
       for (int i = 0; i < array.GetLength(0); i++) {
          for (int j = 0; j < array.GetLength(1); j++) {
-            array[i, j] = 'O';
+            
+            if (j == 0)                           // draw top
+               array[j, i] = '=';
+            else if (j == array.GetLength(0) - 1) // draw bottom
+               array[j, i] = '=';
+            else if (i == 0)                      // draw left
+               array[j, i] = '|';
+            else if (i == array.GetLength(1) - 1) // draw right
+               array[j, i] = '|';
+            else                                  // draw middle
+               array[j, i] = ' ';
          }
       }
+
       queue.Enqueue(randomPos);
       RandomStartDir();
 
@@ -83,6 +117,25 @@ internal class Program {
       timer.Elapsed += Update;
       while (true) {
          GetKey();
+      }
+   }
+   int SetDifficulty (string[] arr) {
+      // pick speed
+      while (true) {
+         var k = Console.ReadKey().Key;
+         if (k == ConsoleKey.UpArrow && selected > 0) {
+            selected--;
+            UI(arr);
+         }
+         else if (k == ConsoleKey.DownArrow && selected < 3) {
+            selected++;
+            UI(arr);
+         }
+         else if (k == ConsoleKey.Enter) {
+            // start watch
+            watch.Start();
+            return selected;
+         }
       }
    }
 
@@ -116,22 +169,21 @@ internal class Program {
       else {
          queue.Enqueue(current);
 
-         // if current position is collide with food dont dequeue
-         // else
-         // reset the value and dequeue the tail
+         // if not collide with food keep dequeuing
          if (current != rdmFoodPos) {
             Vector2 front = queue.Peek();
-            array[front.y, front.x] = 'O';
+            array[front.y, front.x] = ' '; 
             queue.Dequeue();
          }
+         // after collide with food dont dequeue
          else {
             canSpawnFood = true;
             length++;
          }
 
-         // boundary
-         if (current.x < array.GetLength(1) && current.y < array.GetLength(0) &&
-            current.x > -1 && current.y > -1) {
+         // check collision
+         if (current.x < array.GetLength(1) -1 && current.y < array.GetLength(0) -1 &&
+            current.x > 0 && current.y > 0) {
             foreach (var q in queue) {
                array[q.y, q.x] = '@';
             }
@@ -141,10 +193,10 @@ internal class Program {
                }
                Console.WriteLine();
             }
-            Output();
+            //Output();
          }
 
-         // outside boundary
+         // if collide
          else {
             Lose();
          }
@@ -209,26 +261,17 @@ internal class Program {
    }
 
    Vector2 RandFoodPos () {
-      return new Vector2(random.Next(array.GetLength(1) - 1),
-         random.Next(array.GetLength(0) - 1));
+      return new Vector2(random.Next(2, array.GetLength(1) - 2),
+         random.Next(2, array.GetLength(0) - 2));
    }
 
-   void UI () {
-      Console.SetCursorPosition(0, 3);
-      for (int i = 0; i < 4; i++) {
-         if (i == selected) {
-            Console.WriteLine($"> {lists[i]}");
-            continue;
-         }
-         Console.WriteLine($"@ {lists[i]}");
-      }
-   }
+   
 
    void Output () {
       Console.WriteLine($"\nCurrent Position = {current.x} , {current.y}");
       Console.WriteLine($"Length = {length}");
-      Console.WriteLine($"Update Interval (ms) = {i_lists[selected]}");
-      Console.WriteLine($"Survied Time = {Math.Round(watch.ElapsedMilliseconds * 0.001,2)}");
+      Console.WriteLine($"Update Interval (ms) = {diff_int[selected]}");
+      Console.WriteLine($"Survied Time = {Math.Round(watch.ElapsedMilliseconds * 0.001, 2)}");
       Console.WriteLine($"Food position = {rdmFoodPos.x} , {rdmFoodPos.y}");
    }
 
@@ -243,12 +286,12 @@ internal class Program {
    }
 
    Vector2 randomStartPos () {
-      return new Vector2(random.Next(0+3,size_x - 3),
-         random.Next(0+3, size_y - 3));
+      return new Vector2(random.Next(0 + 3, array.GetLength(1) - 3),
+         random.Next(0 + 3, array.GetLength(0) - 3));
    }
 }
 
-struct Vector2{
+struct Vector2 {
    public Vector2 (int _x, int _y) {
       x = _x;
       y = _y;
@@ -271,7 +314,7 @@ struct Vector2{
    }
 
    public override bool Equals (object? obj) {
-      if(obj == null) return false;
+      if (obj == null) return false;
       return (this.x == ((Vector2)obj).x && this.y == ((Vector2)obj).y);
    }
 
