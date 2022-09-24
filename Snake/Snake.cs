@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Timers;
+using LibU;
+
 namespace Snake;
 
 class Map {
@@ -51,6 +53,7 @@ internal class Snake {
 
    enum Direction { Left, Right, Up, Down };
    Direction dir;
+   bool isPause = false;
    //===============================================================
    // food
    bool canSpawnFood = true;
@@ -109,9 +112,23 @@ internal class Snake {
 
       // start game update
       timer.Elapsed += Update;
+
       while (true) {
-         GetKey();
+         while (!Console.KeyAvailable) {
+            key = Console.ReadKey(true);
+            if(key.Key == ConsoleKey.Escape) {
+               if(!isPause) { 
+                  timer.Elapsed -= Update;
+                  isPause = true;
+               }
+               else {
+                  timer.Elapsed += Update;
+                  isPause = false;
+               }
+            }
+         }
       }
+      
    }
    int Setting (string[] arr,ref int selected) {
       // pick speed
@@ -133,11 +150,6 @@ internal class Snake {
       }
    }
 
-   void GetKey () {
-      if (Console.KeyAvailable) {
-         key = Console.ReadKey(true);
-      }
-   }
 
    private void Update (object? sender, ElapsedEventArgs e) {
       // update direction according to last key pressed
@@ -260,7 +272,7 @@ internal class Snake {
    void Output () {
       Console.WriteLine($"\nLength = {length}");
       Console.WriteLine($"Update Interval (ms) = {diff_int[pick_diff]}");
-      Console.WriteLine($"Survied Time = {Math.Round(watch.ElapsedMilliseconds * 0.001, 2)}");
+      Console.WriteLine($"Survied Time = {Math.Round(watch.ElapsedMilliseconds * 0.001, 0)}");
       Console.WriteLine($"Map Size {map.SizeX} , {map.SizeY}");
    }
 
@@ -298,37 +310,5 @@ internal class Snake {
    Vector2 randomStartPos () { // random 0 to last 3 in x and y
       return new Vector2(random.Next(0, map.SizeX - 3),
          random.Next(0, map.SizeY - 3));
-   }
-}
-
-struct Vector2 {
-   public Vector2 (int _x, int _y) {
-      x = _x;
-      y = _y;
-   }
-   public int x;
-   public int y;
-
-   public static Vector2 Zero => new(0, 0);
-   public static Vector2 Right => new(0,1);
-   public static Vector2 Left => new(0,-1);
-   public static Vector2 Up => new(-1,0); 
-   public static Vector2 Down => new(1,0); 
-
-   public static Vector2 operator + (Vector2 a, Vector2 b) => new Vector2(a.x + b.x, a.y + b.y);
-   public static bool operator == (Vector2 a, Vector2 b) {
-      return a.x == b.x && a.y == b.y;
-   }
-   public static bool operator != (Vector2 a, Vector2 b) {
-      return !(a == b);
-   }
-
-   public override bool Equals (object? obj) {
-      if (obj == null) return false;
-      return (this.x == ((Vector2)obj).x && this.y == ((Vector2)obj).y);
-   }
-
-   public override int GetHashCode () {
-      throw new NotImplementedException();
    }
 }
